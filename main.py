@@ -14,6 +14,7 @@ patterns["righteye"]    = "patterns/haarcascade_mcs_righteye.xml"
 #patterns["mouth"]       = "patterns/haarcascade_mcs_mouth.xml"
 patterns["nose"]        = "patterns/haarcascade_mcs_nose.xml"
 #patterns["eyes"]        = "patterns/haarcascade_mcs_eyepair_big.xml"
+filter_file             = "./filters/snapchat-filters-png-4071.png"
 
 flip = False
 camera_device_id = 0
@@ -32,6 +33,9 @@ cap.set(4, camera_height)
 classifiers = {}
 for key,val in patterns.items():
     classifiers[key] = cv2.CascadeClassifier(val)
+
+# Load the filter
+filter_im = Image.open(filter_file)
 
 ## Start the loop
 loop = True
@@ -55,13 +59,13 @@ while loop:
     )
 
     # For every face we found
-    for (x, y, w, h) in faces:
+    for (face_x, face_y, face_w, face_h) in faces:
         # Draw a rectangle around the face
-        cv2.rectangle(img, (x,y), (x+w,y+h), (255,0,0), 2)
+        # cv2.rectangle(img, (face_x,face_y), (face_x+face_w,face_y+face_h), (255,0,0), 2)
 
         # Isolate the face
-        face_image_gray = gray[y:y+h, x:x+w]
-        face_image_color = img[y:y+h, x:x+w]
+        face_image_gray = gray[face_y:face_y+face_h, face_x:face_x+face_w]
+        face_image_color = img[face_y:face_y+face_h, face_x:face_x+face_w]
 
         # Search for face features
         for key,feature in classifiers.items():
@@ -76,14 +80,20 @@ while loop:
                 for (fx, fy, fw, fh) in feature_coords:
                     # cv2.rectangle(face_image_color, (fx,fy), (fx+fw,fy+fh), (0,255,0), 1)
                     feature_centre = fx + fw//2, fy + fh//2
-                    cv2.circle(face_image_color, feature_centre, 5, (0,255,0), -1)
-                    cv2.putText(face_image_color, key, (fx+5,fy-5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 2)
+                    #cv2.circle(face_image_color, feature_centre, 5, (0,255,0), -1)
+                    #cv2.putText(face_image_color, key, (fx+5,fy-5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 2)
 
         # Execute the callback, alerting we found a face!
         #if callback is not None:
         #    loop = callback({"x":x,"y":y,"w":w,"h":h}, img)
 
-    # Show the face on screen
+        # convert CV2 numpy array to PIL image
+        background = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+        filter_im = filter_im.resize((face_w,int(face_h*1.5)))
+        filter_coordinates = (face_x, face_y, face_x+face_w, face_y+int(face_h*1.5))
+        background.paste(filter_im, filter_coordinates, filter_im)
+        # convert PIL image back to CV2 numpy array
+        img = cv2.cvtColor(np.array(background), cv2.COLOR_RGB2BGR)
     cv2.imshow('video',img)
 
     # Check for exit key press

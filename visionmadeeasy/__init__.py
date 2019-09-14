@@ -25,7 +25,7 @@ def convert_cv2_to_pil( cv2_image ):
     import cv2
     from PIL import Image
     cv2_image_rgb = cv2.cvtColor(cv2_image, cv2.COLOR_BGR2RGB)
-    pil_image = Image.fromarray(cv2_image_rgb)
+    pil_image = Image.fromarray(cv2.cvtColor(cv2_image, cv2.COLOR_BGR2RGB))
     return pil_image
 
 def convert_pil_to_cv2( pil_image ):
