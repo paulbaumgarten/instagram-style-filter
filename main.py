@@ -3,65 +3,62 @@ import numpy as np
 import os, sys, time, json
 from PIL import Image
 
-## Setup
-images_folder="."
-patterns = {}
-patterns["face"]        = "patterns/haarcascade_frontalface_default.xml"
-#patterns["leftear"]     = "patterns/haarcascade_mcs_leftear.xml"
-patterns["lefteye"]     = "patterns/haarcascade_mcs_lefteye.xml"
-#patterns["rightear"]    = "patterns/haarcascade_mcs_rightear.xml"
-patterns["righteye"]    = "patterns/haarcascade_mcs_righteye.xml"
-#patterns["mouth"]       = "patterns/haarcascade_mcs_mouth.xml"
-patterns["nose"]        = "patterns/haarcascade_mcs_nose.xml"
-#patterns["eyes"]        = "patterns/haarcascade_mcs_eyepair_big.xml"
-filter_file             = "./filters/snapchat-filters-png-4071.png"
 
-flip = False
-camera_device_id = 0
-camera_width = 640
-camera_height = 480
-min_detect_width = 200
-min_detect_height = 200
-
-## Get camera
-# cv2.namedWindow("preview") # Mac only
-cap = cv2.VideoCapture(camera_device_id)
-cap.set(3, camera_width)
-cap.set(4, camera_height)
-
-## Initialise cascades
-classifiers = {}
-for key,val in patterns.items():
-    classifiers[key] = cv2.CascadeClassifier(val)
-
-# Load the filter
-filter_im = Image.open(filter_file)
-
-## Start the loop
-loop = True
-while loop:
-
-    # Read image from the camera
-    ret, img = cap.read()
+def take_photo( camera_device_id=0, width=640, height=480, flip=False ):
+    cap = cv2.VideoCapture(camera_device_id)
+    cap.set(3, camera_width)
+    cap.set(4, camera_height)
+    ret, cv2_img = cap.read()
     assert ret, "Error reading from capture device "+str(camera_device_id)
     if flip:
-        img = cv2.flip(img, -1)
+        cv2_img = cv2.flip(cv2_img, -1)
+    pil_img = Image.fromarray(cv2.cvtColor(cv2_img, cv2.COLOR_BGR2RGB))
+    return pil_img
 
-    # Convert image to grey scale
+def detect_faces( image, cascade_file="haarcascade_frontalface_default.xml", testing_mode=False):
+        # convert PIL image back to CV2 numpy array
+        img = cv2.cvtColor(np.array(background), cv2.COLOR_RGB2BGR)
+    if not os.path.exists(cascade_file):
+        print(f"Cascade file not found '{cascade_file}'")
+        print("You may need to download it from https://github.com/opencv/opencv/tree/master/data/haarcascades")
+        print("Aborting....")
+        exit(1)
+    min_detect_width = 200
+    min_detect_height = 200
+    classifier = cv2.CascadeClassifier(cascade_file)
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
-    # Detect any faces in the image? Put in an array
     faces = classifiers["face"].detectMultiScale(
         gray,
         scaleFactor=1.2,
         minNeighbors=5,     
         minSize=(min_detect_width, min_detect_height)
     )
+    if testing_mode:
+        for (face_x, face_y, face_w, face_h) in faces:
+            # Draw a rectangle around the face
+            cv2.rectangle(img, (face_x,face_y), (face_x+face_w,face_y+face_h), (255,0,0), 2)
+    return faces
 
-    # For every face we found
-    for (face_x, face_y, face_w, face_h) in faces:
-        # Draw a rectangle around the face
-        # cv2.rectangle(img, (face_x,face_y), (face_x+face_w,face_y+face_h), (255,0,0), 2)
+def detect_left_eye( image, cascade_file="haarcascade_mcs_lefteye.xml" ):
+    pass
+
+def detect_right_eye( image, cascade_file="patterns/haarcascade_mcs_righteye.xml" ):
+    pass
+
+def detect_nose( image, cascade_file="patterns/haarcascade_mcs_nose.xml" ):
+    pass
+
+
+## Setup
+filter_file             = "./filters/snapchat-filters-png-4071.png"
+filter_im = Image.open(filter_file)
+
+## Prompt for ready
+input("Are you ready for me to take your photo?")
+
+photo = take_photo(0)
+photo.show()
+
 
         # Isolate the face
         face_image_gray = gray[face_y:face_y+face_h, face_x:face_x+face_w]
