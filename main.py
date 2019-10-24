@@ -1,23 +1,96 @@
 import cv2
 import numpy as np
-import os, sys, time, json
+import os, sys, time, json, math
 from PIL import Image
+from PIL import ImageFilter
+
+def hex_to_rgb(value):
+    """ Converts `#ffffff` to (255,255,255) """
+    value = value.lstrip('#')
+    r = int(value[:2], 16)
+    g = int(value[2:4], 16)
+    b = int(value[4:], 16)
+    return (r,g,b)
+
+class camera:
+    def __init__(self, camera_device=0, resolution=(1920,1080), flip=False):
+        width, height = resolution
+        self.camera_device = camera_device
+        self.width = width
+        self.height = height
+        self.flip = flip
+
+    def get_photo(self ):
+        cap = cv2.VideoCapture(self.camera_device)
+        cap.set(3, self.width)
+        cap.set(4, self.height)
+        ret, cv2image = cap.read()
+        assert ret, "Error reading from capture device "+str(camera_device)
+        if self.flip:
+            cv2image = cv2.flip(cv2image, -1)
+        pilimage = Image.fromarray(cv2.cvtColor(cv2image, cv2.COLOR_BGR2RGB))
+        return pilimage
+
+    def save_photo(self, filename):
+        pilimage = self.get_photo()
+        pilimage.save(filename)
+        return pilimage
+    
+    @staticmethod
+    def list_camera_modes():
+        pass
+
+def image_remove_background( source_filename, target_filename, background_color="#ffffff", sensitivity=0.1):
+    """ sensitivity is 0..1 """
+    sensitivity_per_byte = int(256*sensitivity)
+    img = Image.open(source_filename)  
+    img = img.convert("RGBA")  
+    remove_color = hex_to_rgb(background_color)
+    pixdata = img.load()  
+    for y in range(img.size[1]):  
+        for x in range(img.size[0]):  
+                r, g, b, a = img.getpixel((x, y))  
+                if abs(remove_color[0]-r)<sensitivity_per_byte and abs(remove_color[1]-g)<sensitivity_per_byte and abs(remove_color[2]-b)<sensitivity_per_byte:
+                    pixdata[x, y] = (0, 0, 0, 0)  # make it transparent
+    img2 = img.filter(ImageFilter.GaussianBlur(radius=1))  
+    if target_filename[-4:].lower() in (".jpg", ".jpe"):
+        target_filename = target_filename[:-4] + ".png"
+    img2.save(target_filename, "PNG")  
 
 
-def take_photo( camera_device_id=0, width=640, height=480, flip=False ):
-    cap = cv2.VideoCapture(camera_device_id)
-    cap.set(3, camera_width)
-    cap.set(4, camera_height)
-    ret, cv2_img = cap.read()
-    assert ret, "Error reading from capture device "+str(camera_device_id)
-    if flip:
-        cv2_img = cv2.flip(cv2_img, -1)
-    pil_img = Image.fromarray(cv2.cvtColor(cv2_img, cv2.COLOR_BGR2RGB))
-    return pil_img
 
+## Prompt for ready
+input("Are you ready for me to take your photo?")
+
+cam = camera(0, (1920,1080))
+photo = cam.save_photo("bleh.jpg")
+photo.show()
+
+image_remove_background("thanos.jpg", "new.png", background_color="#00cb15")
+
+
+"""
+input_img = Image.open("thanos.jpg")
+output_img = Image.new("RGBA", input_img.size)
+
+for y in range(input_img.size[1]):
+	for x in range(input_img.size[0]):
+		p = input_img.getpixel((x, y))
+		d = math.sqrt(math.pow(p[0], 2) + math.pow((p[1] - 255), 2) + math.pow(p[2], 2))
+	
+		if d > 128:
+			d = 255
+	
+		output_img.putpixel((x, y), (p[0], min(p[2], p[1]), p[2], int(d)))
+
+output_img.save("thanos.png", "PNG")
+
+"""
+
+"""
 def detect_faces( image, cascade_file="haarcascade_frontalface_default.xml", testing_mode=False):
-        # convert PIL image back to CV2 numpy array
-        img = cv2.cvtColor(np.array(background), cv2.COLOR_RGB2BGR)
+    # convert PIL image back to CV2 numpy array
+    cv2image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
     if not os.path.exists(cascade_file):
         print(f"Cascade file not found '{cascade_file}'")
         print("You may need to download it from https://github.com/opencv/opencv/tree/master/data/haarcascades")
@@ -26,7 +99,7 @@ def detect_faces( image, cascade_file="haarcascade_frontalface_default.xml", tes
     min_detect_width = 200
     min_detect_height = 200
     classifier = cv2.CascadeClassifier(cascade_file)
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    gray = cv2.cvtColor(cv2image, cv2.COLOR_BGR2GRAY)
     faces = classifiers["face"].detectMultiScale(
         gray,
         scaleFactor=1.2,
@@ -36,7 +109,7 @@ def detect_faces( image, cascade_file="haarcascade_frontalface_default.xml", tes
     if testing_mode:
         for (face_x, face_y, face_w, face_h) in faces:
             # Draw a rectangle around the face
-            cv2.rectangle(img, (face_x,face_y), (face_x+face_w,face_y+face_h), (255,0,0), 2)
+            cv2.rectangle(cv2image, (face_x,face_y), (face_x+face_w,face_y+face_h), (255,0,0), 2)
     return faces
 
 def detect_left_eye( image, cascade_file="haarcascade_mcs_lefteye.xml" ):
@@ -52,14 +125,10 @@ def detect_nose( image, cascade_file="patterns/haarcascade_mcs_nose.xml" ):
 ## Setup
 filter_file             = "./filters/snapchat-filters-png-4071.png"
 filter_im = Image.open(filter_file)
-
-## Prompt for ready
-input("Are you ready for me to take your photo?")
-
-photo = take_photo(0)
-photo.show()
+"""
 
 
+"""
         # Isolate the face
         face_image_gray = gray[face_y:face_y+face_h, face_x:face_x+face_w]
         face_image_color = img[face_y:face_y+face_h, face_x:face_x+face_w]
@@ -100,3 +169,4 @@ photo.show()
 
 cap.release()
 cv2.destroyAllWindows()
+"""
